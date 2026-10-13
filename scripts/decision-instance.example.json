@@ -1,0 +1,36 @@
+[
+  {
+    "class": "Judgment",
+    "props": {
+      "disposition": "费用负担",
+      "amount": 2006,
+      "basis": "案件受理费与鉴定费由被告负担"
+    }
+  },
+  {
+    "class": "AdmissionFinding",
+    "props": {
+      "admittedBy": "被告",
+      "counterparty": "原告",
+      "scope": "交通费仅认可200元",
+      "isRevoked": false,
+      "procedureStage": "一审"
+    }
+  },
+  {
+    "class": "AppellateRequest",
+    "props": {
+      "appellateType": "上诉",
+      "targetJudgment": "一审Judgment-主给付判项",
+      "assertedByRole": "上诉人",
+      "basisNorm": "民事诉讼法"
+    }
+  },
+  {
+    "class": "AdjudicativeFact",
+    "props": {
+      "factLayer": "裁判事实",
+      "findingBasisKind": "司法认知"
+    }
+  }
+]
