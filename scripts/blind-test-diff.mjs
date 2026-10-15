@@ -106,10 +106,16 @@ export function itemsAgree(a, b) {
  * For one layer, classify each item of the modeler's set against each round.
  * Returns: matchedCount, unmatched (modeler items with no counterpart in a round),
  * extra (round items not matched by any modeler item), and a per-round gap flag.
+ *
+ * `extra` is the round-side divergence signal: entries a blind round produced
+ * that the modeler never挂接. Earlier this was dead code (`matched.some(() =>
+ * false)` is always false, so extra silently equaled all roundItems and was
+ * never returned). It now tracks which round items were actually hit.
  */
 export function diffLayer(modelerItems, roundItems) {
     const matched = [];
     const unmatched = [];
+    const hitRoundIdx = new Set();
     for (const m of modelerItems) {
         let hitRound = -1;
         for (let i = 0; i < roundItems.length; i += 1) {
@@ -118,16 +124,22 @@ export function diffLayer(modelerItems, roundItems) {
                 break;
             }
         }
-        if (hitRound >= 0) matched.push(m);
-        else unmatched.push(m);
+        if (hitRound >= 0) {
+            matched.push(m);
+            hitRoundIdx.add(hitRound);
+        } else {
+            unmatched.push(m);
+        }
     }
-    const used = new Set(matched.map((m) => modelerItems.indexOf(m)));
-    const extra = roundItems.filter((_, i) => !matched.some(() => false));
+    // Round items no modeler item matched. A round item matched by several
+    // modeler items is still "hit" and not extra.
+    const extra = roundItems.filter((_, i) => !hitRoundIdx.has(i));
     return {
         modelerCount: modelerItems.length,
         roundCount: roundItems.length,
         matched: matched.length,
         unmatched,
+        extra,
         gap: roundItems.length === 0 && modelerItems.length > 0,
     };
 }
@@ -166,6 +178,12 @@ async function main() {
     const report = { modeler: values.modeler, rounds: values.rounds, layers: [] };
     let gapCount = 0;
     let divergenceCount = 0;
+    // Convergence = the fraction of the modeler's entries that at least one
+    // round reproduced, per layer and overall. This is the single number the
+    // blind-test judgment actually reads ("四方三方以上收敛"): high convergence
+    // means the structure is reproducible across independent submissions.
+    let totalModelerItems = 0;
+    let totalConvergedItems = 0;
 
     for (const key of layerKeys) {
         const mItems = modeler[key] ?? [];
@@ -175,12 +193,39 @@ async function main() {
         const anyDivergence = diffs.some((d) => d.unmatched.length > 0);
         if (anyGap) gapCount += 1;
         if (anyDivergence) divergenceCount += 1;
-        report.layers.push({ layer: key, modelerCount: mItems.length, rounds: diffs });
+
+        // A modeler item "converges" if any round matched it. Union across rounds.
+        const converged = mItems.filter((m) =>
+            perRound.some((items) => items.some((r) => itemsAgree(m, r))),
+        );
+        totalModelerItems += mItems.length;
+        totalConvergedItems += converged.length;
+        const layerConvergence = mItems.length === 0 ? 1 : converged.length / mItems.length;
+
+        report.layers.push({
+            layer: key,
+            modelerCount: mItems.length,
+            convergedCount: converged.length,
+            convergence: Number(layerConvergence.toFixed(3)),
+            rounds: diffs,
+        });
     }
+
+    const overallConvergence =
+        totalModelerItems === 0 ? 1 : totalConvergedItems / totalModelerItems;
+    report.convergence = {
+        modelerItems: totalModelerItems,
+        convergedItems: totalConvergedItems,
+        ratio: Number(overallConvergence.toFixed(3)),
+    };
 
     console.log(JSON.stringify(report, null, 2));
     console.error(
         `\n${report.layers.length} layers compared across ${rounds.length} round(s).`,
+    );
+    console.error(
+        `Convergence: ${totalConvergedItems}/${totalModelerItems} modeler items reproduced ` +
+            `by at least one round (${(overallConvergence * 100).toFixed(1)}%).`,
     );
     console.error(`${gapCount} layer(s) with a gap (a round had no entries where the modeler did).`);
     console.error(`${divergenceCount} layer(s) with unmatched modeler items (divergence signal).`);
