@@ -36,3 +36,12 @@ backend/supabase/*
 
 # Local review artifact; it is a nested repository, not application source.
 /pr-267-analysis-site/
+
+# L3 blind test: the H-pool judgment and any round output that carries a
+# proposed挂接 are the answer. Per cohort discipline (H 池案源保密) they must
+# never enter git — a leaked judgment destroys the blind test's only value.
+# The task sheet and the skeleton generator are fine to track; these are not.
+blind-test/*judgment*
+blind-test/*.txt
+blind-test/*round*-output*
+blind-test/*挂接*
