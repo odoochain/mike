@@ -35,14 +35,31 @@ if (!m) {
 }
 const yamlBlock = m[1];
 
+// 剥离上一轮盲测的过程记录：它写明了上一轮三方各自把上诉请求塞进 Claim 或
+// L3/A 翼（三条变通路径）。把这段交给新盲测方等于把答案递过去——盲测即失效。
+// 内容锚定删除（原状：… 本身即缺口证据。），删除后由下方断言兜底。
+// 源骨架 md 在 Windows 上是 CRLF；若直接照抄，生成的净版每行结尾带 \r，
+// 会被 git 判为 trailing whitespace（git diff --check 报满屏）。统一归一化为 LF。
+const sanitized = yamlBlock
+    .replace(/\r\n/g, "\n")
+    .replace(/\n[ \t]*原状：[\s\S]*?本身即缺口证据。/, "");
+
 // 版本行自检：净版必须与源文档版本一致，防止提取错版本。
-const verMatch = yamlBlock.match(/^\s*version:\s*(\S+)/m);
+const verMatch = sanitized.match(/^\s*version:\s*(\S+)/m);
 const version = verMatch ? verMatch[1] : "(未找到)";
 
 // 安全检查：YAML 块内不得出现具体案号或已用案件当事人（防挂接暗示泄漏）。
-const leaks = yamlBlock.match(/(2016)苏09|16502|129号|1195号|周×|李××|陈某某|雷某/g);
+const leaks = sanitized.match(/(2016)苏09|16502|129号|1195号|周×|李××|陈某某|雷某/g);
 if (leaks) {
     console.error(`FATAL: YAML 块内发现案件暗示：${[...new Set(leaks)].join(", ")}`);
+    process.exit(2);
+}
+
+// fail-closed：剥离后不得残留任何"盲测"过程史。若源文档改写了这段措辞，
+// 上面的锚定会失效，此处必须拦下，而不是静默产出带答案的净版。
+const residual = sanitized.match(/盲测/g);
+if (residual) {
+    console.error(`FATAL: 仍残留 ${residual.length} 处盲测过程史，剥离锚点可能已失效`);
     process.exit(2);
 }
 
@@ -53,10 +70,10 @@ const header = `# 盲测用骨架（净版）：中国法本体骨架 ${version}
 > 盲测方只需本文件 + 判决书原文。
 
 \`\`\`yaml
-${yamlBlock}\`\`\`
+${sanitized}\`\`\`
 `;
 
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, header, "utf8");
 console.log(`已生成 ${out}`);
-console.log(`版本：${version}，YAML ${yamlBlock.split("\n").length} 行`);
+console.log(`版本：${version}，YAML ${sanitized.split("\n").length} 行`);

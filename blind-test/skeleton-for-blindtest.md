@@ -137,8 +137,6 @@ classes:
     props: [appellateType, targetJudgment, reviewOrder]
     note: |
       C9（2026-10-13）：上诉/抗诉等审级请求独立成类。
-      原状：二审请求不属 claimType 任何枚举值，盲测三方各自把上诉请求
-      塞进 Claim 或 L3/A 翼（三条不同变通路径），本身即缺口证据。
       与 Claim 并列而非塞入 Claim——审级请求不是新的实体请求权。
       targetJudgment 指向被攻击的判项（Judgment），配合 C7 的 range 扩展。
 
